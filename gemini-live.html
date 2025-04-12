@@ -12,6 +12,7 @@
             flex-direction: column;
             height: 100vh;
             margin: 0;
+            overflow: hidden; /* Prevent body scroll */
             background-color: #f4f4f4;    
         }
         #controls {
@@ -55,11 +56,12 @@
 
         #output-container {
             flex-grow: 1; /* Takes remaining height */
-            padding: 15px;
+            padding: 10px;
+            padding-bottom: 30px;
             overflow-y: auto; /* Enables scrolling */
             background-color: #fff;
             border: 1px solid #ddd;
-            margin: 10px;
+            margin: 8px;
             border-radius: 5px;
         }
         #output {
@@ -101,8 +103,8 @@
                     target="_blank" style="text-decoration: none;">This
                     code is on GitHub.</a><br><br>
                 <input type="checkbox" id="debugCheckbox">
-                <label for="debugCheckbox"><small>Debug to<br>
-                    &nbsp;&nbsp;&nbsp;&nbsp;console</small></label>
+                <label for="debugCheckbox"><small>Debug<br>
+                    &nbsp;&nbsp;to console</small></label>
             </div>
            <button id="toggleStream">Start<br>Listening</button>
         </div>
@@ -123,11 +125,12 @@
         // https://github.com/googleapis/js-genai
 
         // --- Configuration ---
-        const MODEL_NAME = "gemini-2.0-flash-live-001"; // Realtime/Live
+        const MODEL_NAME = "gemini-2.0-flash-live-001"; // Realtime/Live model
         const TARGET_SAMPLE_RATE = 16000; // Gemini requires 16kHz audio
         const SYSTEM_PROMPT = 'Please be a helpful assistant and kind conversationalist. ' +
             'Respond to the user(s) directly by answering with relevant information ' +
-            'in full detail. Only use plain UTF-8 text and Markdown, but never use LaTeX. ' +
+            'in full detail. When you do not have relevant information, use your ' +
+            'Google Search tool to search for it. You can use Markdown and LaTeX. ' +
             "Do not merely describe the user(s)' utterances. Do not include timestamps.";
 
         // --- DOM Elements ---
