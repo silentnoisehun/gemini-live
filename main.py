@@ -18,6 +18,13 @@ def index():
     <title>Gemini Live Voice to Text Realtime: Enter API Key</title>
     <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background-color: lightgreen;
+            font-family: sans-serif;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
     <h2>Gemini Live Voice to Text Realtime</h2>
