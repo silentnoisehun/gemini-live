@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Live Voice to Text Realtime Stream</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;    
+        }
+        #controls {
+            padding: 15px;
+            background-color: #4ed6c934;
+            border-bottom: 1px solid #ccc;
+            text-align: center;
+        }
+        #controls-content > * {
+            white-space: nowrap;
+        }
+        #controls-content {
+            display: flex;
+            align-items: center;            
+            justify-content: flex-end;
+            width: 100%;            
+            text-align: center;
+            gap: 10px; /* Add gap between title and button */
+        }
+        #toggleStream {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        #toggleStream.stop {
+            background-color: #f44336;
+        }
+        #title {
+            font-size: 1.2em;
+            border-radius: 5px;
+            margin-right: auto; /* Push the title to the left */
+        }
+        #controls-content > label, #controls-content > input {
+            margin-left: 10px;
+        }
+        #debugContainer {
+            margin-right: auto; /* Push the container to the left */
+            text-align: center; /* Center content within the container */
+        }
+
+        #output-container {
+            flex-grow: 1; /* Takes remaining height */
+            padding: 15px;
+            overflow-y: auto; /* Enables scrolling */
+            background-color: #fff;
+            border: 1px solid #ddd;
+            margin: 10px;
+            border-radius: 5px;
+        }
+        #output {
+            white-space: pre-wrap; /* Preserve whitespace and wrap lines */
+            word-wrap: break-word; /* Break long words */
+            font-family: sans-serif;
+            font-size: 0.9em;
+        }
+        #output p {
+            margin-bottom: -0.5em; /* Remove vertical whitespace */
+            margin-top: -0.2em;
+        }
+        #output ul, #output ol, #output li {
+            margin-top: -0.5em;
+            margin-bottom: -0.5em; /* Remove vertical whitespace */
+        }
+        #output pre {
+            margin: 0; /* Remove vertical whitespace */
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .info {
+            color: blue;
+            font-style: italic;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+</head>
+<body>
+    <div id="controls">
+        <div id="controls-content">
+            <h1 id="title">Gemini Live<br>Voice to Text</h1>
+            <div id="debugContainer">
+                <input type="checkbox" id="debugCheckbox">
+                <label for="debugCheckbox">Debug to<br/>
+                    &nbsp;&nbsp;&nbsp;console</label>
+            </div>
+           <button id="toggleStream">Start Listening</button>
+        </div>
+    </div>
+
+    <div id="output-container">
+        <pre id="output"></pre>
+    </div>
+
+    <script type="module">
+        // Import necessary modules
+        import { marked } from 'https://esm.sh/marked'; // Markdown
+        import markedKatex from 'https://esm.sh/marked-katex-extension'; // LaTeX
+        import { GoogleGenAI, Modality } from 'https://esm.run/@google/genai';
+
+        // Docs: https://ai.google.dev/gemini-api/docs/live
+        // https://googleapis.github.io/js-genai/main/index.html
+        // https://github.com/googleapis/js-genai
+
+        // --- Configuration ---
+        const MODEL_NAME = "gemini-2.0-flash-live-001"; // Realtime/Live
+        const TARGET_SAMPLE_RATE = 16000; // Gemini requires 16kHz audio
+        const SYSTEM_PROMPT = 'Please be a helpful assistant and kind conversationalist. ' +
+            'Respond to the user(s) directly by answering with relevant information ' +
+            'in full detail. Only use plain UTF-8 text and Markdown, but never use LaTeX. ' +
+            "Do not merely describe the user(s)' utterances. Do not include timestamps.";
+
+        // --- DOM Elements ---
+        const toggleButton = document.getElementById('toggleStream');
+        const outputArea = document.getElementById('output');
+
+        // --- State Variables ---
+        let genAI;
+        let liveSession = null;
+        let mediaStream = null;
+        let audioContext = null;
+        let audioSource = null;
+        let audioWorkletNode = null;
+        let isStreaming = false;        
+        let currentTurnText = "";
+        let totalBytesSent = 0;
+        let API_KEY = null;
+        
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        function checkApiKey() {
+             API_KEY = getCookie('gemini_api_key');
+             if (!API_KEY) {
+                liveOutput("API Key not set. Please reload this page to enter it.", 'error');
+                return false;
+            }
+            return true;
+        }
+            
+        // --- Debug Checkbox Logic ---
+        const debugCheckbox = document.getElementById('debugCheckbox');
+        let debugMode = false; // Flag to control debug logging
+        // Add an event listener to the checkbox to toggle debug mode
+        debugCheckbox.addEventListener('change', () => {
+            debugMode = debugCheckbox.checked;
+        });
+
+        marked.use(markedKatex({ throwOnError: false }));
+
+        function liveOutput(text, type = 'text') {
+            const line = document.createElement('div');
+            line.innerHTML = marked.parse(text);
+            if (type === 'error') {
+                line.classList.add('error');
+                console.error(text);
+            } else if (type === 'info') {
+                line.classList.add('info');
+                console.log(text);
+            } else {
+                 line.classList.add('text');
+            }
+            if (type !== 'error' && type !== 'info') { // Only log "Gemini:" if not error or info
+                console.log("Gemini:", text.replace('\n&nbsp;', ''));
+            }
+            outputArea.appendChild(line);
+            outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
+        }
+
+        function arrayBufferToBase64(buffer) {
+            let binary = "";
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+
+        // --- Audio Worklet ---
+        const AudioRecordingWorklet = `
+            class AudioProcessingWorklet extends AudioWorkletProcessor {
+                buffer = new Int16Array(2048);
+                bufferWriteIndex = 0;
+
+                constructor() {
+                  super();
+                    this.port.onmessage = (event) => {
+                        // console.log("Worklet received message:", event.data);
+                    };
+                }
+
+                process(inputs, outputs, parameters) {
+                    if (inputs.length > 0 && inputs[0].length > 0) {
+                        const channelData = inputs[0][0];
+                        this.processChunk(channelData);
+                    }
+                    return true; // Keep processor alive
+                }
+
+                sendAndClearBuffer() {
+                    if (this.bufferWriteIndex > 0) {
+                        const dataToSend = this.buffer.slice(0, this.bufferWriteIndex);
+                        this.port.postMessage({
+                            eventType: "audioData",
+                            audioData: dataToSend.buffer // Send ArrayBuffer
+                        }, [dataToSend.buffer]); // Transfer buffer ownership for efficiency
+                        this.bufferWriteIndex = 0;
+                    }
+                }
+
+                processChunk(float32Array) {
+                    for (let i = 0; i < float32Array.length; i++) {
+                        const clampedValue = Math.max(-1.0, Math.min(1.0, float32Array[i]));
+                        const int16Value = Math.floor(clampedValue * 32767);
+                        this.buffer[this.bufferWriteIndex++] = int16Value;
+                        if (this.bufferWriteIndex >= this.buffer.length) {
+                            this.sendAndClearBuffer();
+                        }
+                    }
+                }
+            }
+            registerProcessor('audio-processing-worklet', AudioProcessingWorklet);
+        `;
+
+        // --- Core Streaming Logic ---
+
+        async function startStreaming() {
+            if (isStreaming) return;
+            if (!checkApiKey()) {
+                return;
+            }
+
+
+            isStreaming = true; // Set streaming flag early
+            toggleButton.textContent = "Stop Listening";
+            toggleButton.classList.add('stop');
+         
+            try {
+                // Step 1: Initialize GoogleGenAI Client
+                genAI = new GoogleGenAI({ apiKey: API_KEY });
+                try {
+                    const modelInfo = await genAI.models.get({ model: MODEL_NAME });
+                    console.log("Gemini model info:", modelInfo);                
+                } catch (testError) {
+                    // Clear the cookie
+                    document.cookie = 'gemini_api_key=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                    // Redirect to root
+                    window.location.href = '/';
+                    return;
+                }
+
+                // Step 2: Get Microphone Access
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: TARGET_SAMPLE_RATE,
+                        echoCancellation: false,
+                        noiseSuppression: true
+                    }
+                });
+                
+                // Step 3: Create Audio Context and Source
+                audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+                // Resume context if suspended (often needed after page load)
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                audioSource = audioContext.createMediaStreamSource(mediaStream);
+
+                // 4. Set up Audio Worklet
+                const workletBlob = new Blob([AudioRecordingWorklet], { type: 'application/javascript' });
+                const workletURL = URL.createObjectURL(workletBlob);
+                try {
+                    await audioContext.audioWorklet.addModule(workletURL);
+                } catch (e) {
+                    liveOutput(`Error adding AudioWorklet module: ${e.message}. Make sure you are serving this page over HTTPS or localhost.`, 'error');
+                    throw e; // Re-throw to be caught by outer catch
+                }
+                audioWorkletNode = new AudioWorkletNode(audioContext, 'audio-processing-worklet');
+  
+                // Step 4: Connect Audio Nodes: Mic Source -> Worklet
+                audioSource.connect(audioWorkletNode);
+
+                // Step 5: Connect to Gemini Live API
+                // Assign to liveSession *after* connection is successful
+                liveSession = await genAI.live.connect({
+                    model: MODEL_NAME,
+                    audioConfig: { targetSampleRate: TARGET_SAMPLE_RATE},
+                    systemInstruction: SYSTEM_PROMPT,
+                    config: {
+                        temperature: 0,
+                        tools: [
+                            {codeExecution: {}},
+                            {googleSearch: {}},
+                            ],
+                        responseModalities: [Modality.TEXT]
+                    },
+                    callbacks: {
+                        onopen: () => {
+                            // The connection to Gemini is open; audio processing and sending can begin
+                            liveOutput("Connected to Gemini. Listening...", 'info');
+                        },
+                        onmessage: (message) => {
+                            if (debugMode) {
+                                console.log("Debug message:", message);
+                            }
+
+                            if (message.serverContent?.modelTurn?.parts?.length > 0) {  
+                                const part = message.serverContent.modelTurn.parts[0];
+
+                                if (part.executableCode) {
+                                    liveOutput("Code:\n```\n" + part.executableCode.code + " ```");
+                                } else if (part.codeExecutionResult) {
+                                    const result = part.codeExecutionResult;
+                                    liveOutput("Outcome: " + result.outcome + "\n``` \n" + result.output + " ```");
+                                } else {
+                                    const textPart = message.serverContent.modelTurn.parts.find(part => part.text);
+                                    if (textPart && textPart.text.trim()) {
+                                        currentTurnText += textPart.text;
+                                    }
+                                }
+
+                            }
+                            if (message.serverContent?.turnComplete || message.generationComplete) {
+                                // Finalize text when a turn was completed
+                                if (currentTurnText.trim().length > 0) {
+                                    liveOutput(currentTurnText + "\n&nbsp;");
+                                }
+                                currentTurnText = ""; // Reset for next turn
+                            }
+                            if (message.error) {
+                                liveOutput(`Gemini Error: ${message.error.message || JSON.stringify(message.error)}`, 'error');
+                            }
+                        },
+                        onerror: (errorEvent) => {
+                            // Use errorEvent directly if it's an Error object, otherwise stringify
+                            const errorMessage = errorEvent instanceof Error ? errorEvent.message : JSON.stringify(errorEvent);
+                            liveOutput(`Gemini connection error: ${errorMessage}`, 'error');
+                            stopStreaming(); // Stop on connection error
+                        },
+                        onclose: (closeEvent) => {
+                            // Only call stopStreaming if the closure was unexpected while we were actively streaming
+                            if (isStreaming) {
+                                liveOutput("Connection closed unexpectedly.", 'error');
+                                stopStreaming();
+                            }
+                         },
+                    },
+                });
+
+                // Step 6: Handle Audio Data from Worklet
+                audioWorkletNode.port.onmessage = (event) => {
+                    // Check if it's audio data, if the session exists, and if we are still streaming
+                    if (event.data.eventType === 'audioData' && liveSession && isStreaming) {
+                        const audioDataBuffer = event.data.audioData;
+                        const base64AudioData = arrayBufferToBase64(audioDataBuffer);
+                        
+                        try {
+                            // Send audio chunk to Gemini
+                            liveSession.sendRealtimeInput({
+                                media: {
+                                    data: base64AudioData,
+                                    mimeType: `audio/pcm;rate=${TARGET_SAMPLE_RATE}`
+                                }
+                            });
+                            totalBytesSent += audioDataBuffer.byteLength;
+                            if (debugMode && (totalBytesSent - 4096) % 163840 === 0) { // every ~5 seconds
+                                console.log("Audio sent", totalBytesSent, "bytes,",
+                                    Math.round(totalBytesSent / 32000), "seconds");
+                            }
+                        } catch (sendError) {
+                            liveOutput(`Error sending audio data: ${sendError.message}`, 'error');
+                            // Optionally stop streaming if sending fails repeatedly
+                            // stopStreaming();
+                        }
+                    }
+                };
+
+            } catch (error) {
+                liveOutput(`Error starting stream: ${error.message || error}`, 'error');
+                await stopStreaming(); // Ensure cleanup happens even on startup error
+            }
+        }
+
+        async function stopStreaming() {
+            // Prevent multiple stop calls overlapping
+            if (!isStreaming && !liveSession && !mediaStream && !audioContext) {
+                console.log("Stop called but already stopped/cleaned up.");
+                return;
+            } 
+            const wasStreaming = isStreaming; // Keep track if we were actively streaming
+            isStreaming = false; // Set flag immediately to stop sending data
+
+            // Step 7: Close Gemini Session
+            if (liveSession) {
+                try {
+                    liveSession.close();
+                } catch (e) {
+                    liveOutput(`Error closing Gemini session: ${e.message}`, 'error');
+                } finally {
+                    liveSession = null;
+                }
+            }
+
+            // Step 8: Stop Audio Processing
+            if (audioWorkletNode) {
+                audioWorkletNode.disconnect();
+                audioWorkletNode = null;
+            }
+            if (audioSource) {
+                audioSource.disconnect();
+                audioSource = null;
+            }            
+            // Step 9: Stop Media Stream Tracks
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+            // Step 10: Close Audio Context
+            if (audioContext && audioContext.state !== 'closed') {
+                try {
+                    await audioContext.close();
+                } catch (e) {
+                    liveOutput(`Error closing AudioContext: ${e.message}`, 'error');
+                } finally { audioContext = null;
+                }
+            }
+
+            // Step 11: Reset UI
+            toggleButton.textContent = "Start Listening";
+            toggleButton.classList.remove('stop');
+            genAI = null; // Clear the client instance
+            if (wasStreaming) {
+                liveOutput("Stopped listening.", 'info');
+            } 
+           
+        }
+
+        // --- Event Listener ---
+        toggleButton.addEventListener('click', () => {
+            if (isStreaming) {
+                stopStreaming();
+            } else {
+                startStreaming();
+            }
+        });
+
+
+        // Add safety net for page unload
+        if (checkApiKey()) {
+            liveOutput("Click 'Start Listening' to begin.", 'info');
+        }
+        window.addEventListener('beforeunload', () => {
+            if (isStreaming) {
+                stopStreaming(); // Attempt cleanup if user navigates away
+            }
+        });
+    </script>
+</body>
+</html>
