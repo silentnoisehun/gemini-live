@@ -20,9 +20,6 @@
             border-bottom: 1px solid #ccc;
             text-align: center;
         }
-        #controls-content > * {
-            white-space: nowrap;
-        }
         #controls-content {
             display: flex;
             align-items: center;            
@@ -81,6 +78,7 @@
         }
         #output pre {
             margin: 0; /* Remove vertical whitespace */
+            white-space: pre-wrap; /* Preserve whitespace and wrap lines */
         }
         .error {
             color: red;
@@ -97,15 +95,16 @@
 <body>
     <div id="controls">
         <div id="controls-content">
-            <h1 id="title">Gemini Live<br>Voice to Text</h1>
+            <h1 id="title">Gemini Live<br>Voice to Text Stream</h1>
             <div id="debugContainer">
                 <a href="https://github.com/jsalsman/gemini-live"
                     target="_blank" style="text-decoration: none;">This
                     code is on GitHub.</a><br><br>
                 <input type="checkbox" id="debugCheckbox">
-                <label for="debugCheckbox">Debug to console</label>
+                <label for="debugCheckbox"><small>Debug to<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;console</small></label>
             </div>
-           <button id="toggleStream">Start Listening</button>
+           <button id="toggleStream">Start<br>Listening</button>
         </div>
     </div>
 
@@ -257,7 +256,7 @@
 
 
             isStreaming = true; // Set streaming flag early
-            toggleButton.textContent = "Stop Listening";
+            toggleButton.innerHTML = "Stop<br>Listening";
             toggleButton.classList.add('stop');
          
             try {
@@ -451,11 +450,11 @@
             }
 
             // Step 11: Reset UI
-            toggleButton.textContent = "Start Listening";
+            toggleButton.innerHTML = "Start<br>Listening";
             toggleButton.classList.remove('stop');
             genAI = null; // Clear the client instance
             if (wasStreaming) {
-                liveOutput("Stopped listening.", 'info');
+                liveOutput("Stopped listening.\n", 'info');
             } 
            
         }
