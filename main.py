@@ -14,20 +14,31 @@ def index():
             html_content = """<!DOCTYPE html>
 <html>
 <head>
-    <title>Gemini Live Voice to Text Realtime Stream: Enter API Key</title>
+    <meta charset="UTF-8">
+    <title>Gemini Live Voice to Text Realtime: Enter API Key</title>
+    <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-    <h2>Gemini Live Voice to Text Realtime Stream</h2>
-    <p>Enter your (free!) Gemini API key from
+    <h2>Gemini Live Voice to Text Realtime</h2>
+    <p>Enter your (free!) Gemini API key from:
     <a href="https://aistudio.google.com/apikey" target="_blank"
-        >aistudio.google.com/apikey</a></p>
+        style="text-decoration: none;">aistudio.google.com/apikey</a></p>
     <form method="POST">
         <input type="text" size="33" name="api_key" required>
         <button type="submit">Submit</button>
     </form>
-    <p><small><b>Privacy policy:</b> Your API key is stored in a cookie which
-        is only accessible from the HTML JavaScript at this domain, which runs
-        only in your browser. It will never be stored anywhere else.</small>
+    <p>
+        <small>
+            <b>Privacy policy:</b> Your API key is stored in a cookie which
+            is only accessible from the HTML JavaScript at this domain, which
+            runs only in your browser. It will never be stored anywhere else.
+            If you don't trust this,
+            <a href="https://github.com/jsalsman/gemini-live" target="_blank"
+            style="text-decoration: none;">fork the code on GitHub</a> to run
+            it on your own server. By <a href="mailto:jim@talknicer.com"
+            style="text-decoration: none;">Jim Salsman</a>, April 11, 2025.
+        </small>
     </p>
 </body>
 </html>

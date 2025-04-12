@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gemini Live Voice to Text Realtime Stream</title>
+    <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
             font-family: sans-serif;
@@ -99,9 +99,11 @@
         <div id="controls-content">
             <h1 id="title">Gemini Live<br>Voice to Text</h1>
             <div id="debugContainer">
+                <a href="https://github.com/jsalsman/gemini-live"
+                    target="_blank" style="text-decoration: none;">This
+                    code is on GitHub.</a><br><br>
                 <input type="checkbox" id="debugCheckbox">
-                <label for="debugCheckbox">Debug to<br/>
-                    &nbsp;&nbsp;&nbsp;console</label>
+                <label for="debugCheckbox">Debug to console</label>
             </div>
            <button id="toggleStream">Start Listening</button>
         </div>
@@ -331,10 +333,10 @@
                                 const part = message.serverContent.modelTurn.parts[0];
 
                                 if (part.executableCode) {
-                                    liveOutput("Code:\n```\n" + part.executableCode.code + " ```");
+                                    liveOutput("**Python code:**\n```\n" + part.executableCode.code + " ```");
                                 } else if (part.codeExecutionResult) {
                                     const result = part.codeExecutionResult;
-                                    liveOutput("Outcome: " + result.outcome + "\n``` \n" + result.output + " ```");
+                                    liveOutput("**Output:** (" + result.outcome + ")\n``` \n" + result.output + " ```");
                                 } else {
                                     const textPart = message.serverContent.modelTurn.parts.find(part => part.text);
                                     if (textPart && textPart.text.trim()) {
