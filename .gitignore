@@ -1,8 +1,0 @@
-.venv
-backups
-.vscode
-.idx
-__pycache__
-devserver.sh
-todo.txt
-.gitignore
