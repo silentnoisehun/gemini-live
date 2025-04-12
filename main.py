@@ -1,5 +1,5 @@
 import os
-from flask import Flask, send_file, request, redirect
+from flask import Flask, send_file, request, redirect, Response
 
 app = Flask(__name__)
 
@@ -51,5 +51,14 @@ def index():
             max_age=31_536_000)  # one year
         return response
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_file('favicon.ico', mimetype='image/x-icon')
+
+@app.route('/robots.txt')
+def robots():
+    return Response("User-agent: *\nAllow: /\n", mimetype='text/plain')
+
 def main():
     app.run(port=int(os.environ.get('PORT', 80)))
+
