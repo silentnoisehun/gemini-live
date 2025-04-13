@@ -20,6 +20,7 @@
             background-color: #4ed6c934;
             border-bottom: 1px solid #ccc;
             text-align: center;
+            position: relative;
         }
         #controls-content {
             display: flex;
@@ -27,7 +28,7 @@
             justify-content: flex-end;
             width: 100%;            
             text-align: center;
-            gap: 10px; /* Add gap between title and button */
+            gap: 5px; /* Add gap between title and button */
         }
         #toggleStream {
             padding: 10px 20px;
@@ -36,6 +37,15 @@
             background-color: #4CAF50;
             color: white;
             border: none;
+            border-radius: 5px;
+        }
+        #sendImage {   
+            background-color: blue;
+            display: none; /* Initially hidden */
+            border: none;
+            color: white;
+            font-size: 1em;
+            padding: 10px 20px;
             border-radius: 5px;
         }
         #toggleStream.stop {
@@ -47,7 +57,7 @@
             margin-right: auto; /* Push the title to the left */
         }
         #controls-content > label, #controls-content > input {
-            margin-left: 10px;
+            margin-left: 5px;
         }
         #debugContainer {
             margin-right: auto; /* Push the container to the left */
@@ -82,6 +92,9 @@
             margin: 0; /* Remove vertical whitespace */
             white-space: pre-wrap; /* Preserve whitespace and wrap lines */
         }
+        .output-image {
+            max-height: 50vh;
+        }
         .error {
             color: red;
             font-weight: bold;
@@ -106,7 +119,10 @@
                 <label for="debugCheckbox"><small>Debug<br>
                     &nbsp;&nbsp;to console</small></label>
             </div>
-           <button id="toggleStream">Start<br>Listening</button>
+           <button id="toggleStream">Start<br>
+            Listening</button>
+           <button id="sendImage">Send<br>
+            Image</button>
         </div>
     </div>
 
@@ -136,6 +152,7 @@
         // --- DOM Elements ---
         const toggleButton = document.getElementById('toggleStream');
         const outputArea = document.getElementById('output');
+        const sendImageButton = document.getElementById('sendImage');
 
         // --- State Variables ---
         let genAI;
@@ -255,6 +272,7 @@
             if (isStreaming) return;
             if (!checkApiKey()) {
                 return;
+                
             }
 
 
@@ -324,6 +342,7 @@
                     callbacks: {
                         onopen: () => {
                             // The connection to Gemini is open; audio processing and sending can begin
+                            //sendImageButton.style.display = 'inline-block'; // Show the button
                             liveOutput("Connected to Gemini. Listening...", 'info');
                         },
                         onmessage: (message) => {
@@ -334,7 +353,19 @@
                             if (message.serverContent?.modelTurn?.parts?.length > 0) {  
                                 const part = message.serverContent.modelTurn.parts[0];
 
-                                if (part.executableCode) {
+                                if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
+                                    liveOutput("Image:", "info")
+                                    try {
+                                        // Handle image data
+                                        const img = document.createElement('img');       
+                                        img.classList.add('output-image'); // Add CSS class for styling
+                                        img.src = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                                        outputArea.appendChild(img);
+                                        outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
+                                    } catch (renderError) {
+                                        liveOutput(`Error rendering image: ${renderError.message}`, 'error');
+                                    }
+                                } else if (part.executableCode) {
                                     liveOutput("**Python code:**\n```\n" + part.executableCode.code + " ```");
                                 } else if (part.codeExecutionResult) {
                                     const result = part.codeExecutionResult;
@@ -455,6 +486,7 @@
             // Step 11: Reset UI
             toggleButton.innerHTML = "Start<br>Listening";
             toggleButton.classList.remove('stop');
+            sendImageButton.style.display = 'none'; // Hide the button
             genAI = null; // Clear the client instance
             if (wasStreaming) {
                 liveOutput("Stopped listening.\n", 'info');
@@ -471,6 +503,100 @@
             }
         });
 
+        // Enhanced "Send Image" button event listener
+        document.getElementById('sendImage').addEventListener('click', () => {
+            // Create a file input element
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*'; // Accept only image files
+            
+            // Add event listener for file selection
+            input.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    // Check if file size is reasonable (under 20MB)
+                    if (file.size > 20 * 1024 * 1024) {
+                        liveOutput(`Image too large (${(file.size/1024/1024).toFixed(2)}MB). Maximum size is 20MB.`, 'error');
+                        return;
+                    }
+                    
+                    liveOutput(`Processing image: ${file.name}`, 'info');
+                    
+                    // Process the selected image
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        try {
+                            const base64Data = reader.result.split(',')[1]; // Extract base64 string
+                            // Pass the file's actual MIME type
+                            sendImageToStream(base64Data, file.type);
+                        } catch (error) {
+                            liveOutput(`Error processing image: ${error.message}`, 'error');
+                        }
+                    };
+                    reader.onerror = (error) => {
+                        liveOutput(`Failed to read file: ${error}`, 'error');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // Trigger the file input dialog
+            input.click();
+        });
+
+        // Function to send the image to the stream
+        async function sendImageToStream(base64Image, mimeType = 'image/jpeg') {
+            if (!liveSession) {
+                liveOutput('Live session not available. Please start listening first.', 'error');
+                return;
+            }
+            
+            if (!isStreaming) {
+                liveOutput('Streaming is not active. Please start listening first.', 'error');
+                return;
+            }
+            
+            try {
+                // Debug information
+                if (debugMode) {
+                    console.log(`Sending image (${(base64Image.length * 0.75 / 1024).toFixed(2)}KB) with MIME type: ${mimeType}`);
+                }
+                
+                // Show a loading indicator
+                liveOutput('Sending image...', 'info');
+                
+                // Send the image using the proper format
+                await liveSession.sendClientContent({
+                    turns: [{
+                        role: 'user',
+                        parts: [{
+                            inlineData: {
+                                mimeType: mimeType,
+                                data: base64Image
+                            }
+                        }]
+                    }],
+                    turnComplete: false // Keep the conversation flowing
+                });
+                
+                liveOutput('Image sent successfully! Waiting for Gemini to process...', 'info');
+            } catch (error) {
+                // Handle the error appropriately
+                liveOutput(`Error sending image: ${error.message || JSON.stringify(error)}`, 'error');
+                console.error("Full error details:", error);
+                
+                // If the connection was closed, inform the user
+                if (error.message && (
+                    error.message.includes('closed') || 
+                    error.message.includes('not connected') ||
+                    error.message.includes('invalid state')
+                )) {
+                    liveOutput('Connection lost. Try restarting the listening session.', 'error');
+                    // Force stop streaming to clean up resources
+                    stopStreaming();
+                }
+            }
+        }
 
         // Add safety net for page unload
         if (checkApiKey()) {

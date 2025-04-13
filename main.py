@@ -46,8 +46,8 @@ def index():
             style="text-decoration: none;">source code is free on 
             GitHub</a> under the MIT License. Voice to text
         interactions are advantageous because most people read
-        about twice as fast as synthetic speech typically speaks,
-        and text can be skimmed, whereas interrupting speech
+        about twice as fast as synthetic speech typically talks;
+        while text can be skimmed, whereas interrupting speech
         leaves what might have been said a complete mystery.
     </p>
     <p>
@@ -83,4 +83,3 @@ def robots():
 
 def main():
     app.run(port=int(os.environ.get('PORT', 80)))
-
