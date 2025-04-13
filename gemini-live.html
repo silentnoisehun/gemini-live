@@ -342,7 +342,7 @@
                     callbacks: {
                         onopen: () => {
                             // The connection to Gemini is open; audio processing and sending can begin
-                            //sendImageButton.style.display = 'inline-block'; // Show the button
+                            sendImageButton.style.display = 'inline-block'; // Show the button
                             liveOutput("Connected to Gemini. Listening...", 'info');
                         },
                         onmessage: (message) => {
@@ -575,8 +575,8 @@
                                 data: base64Image
                             }
                         }]
-                    }],
-                    turnComplete: false // Keep the conversation flowing
+                    }],                    
+                    turnComplete: true
                 });
                 
                 liveOutput('Image sent successfully! Waiting for Gemini to process...', 'info');
