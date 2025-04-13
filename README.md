@@ -16,6 +16,7 @@ This **Gemini Live Voice to Text Realtime Stream** running at [live.talknicer.co
 *   **Google Search Integration**: The `gemini-2.0-flash-live-001` model performs Google searches on request for up to date information.
 *   **Code Execution:** The model is able to execute python code to do complex computations for you, and show you both text and image output such as `matplotlib` graphs.
 *   **Image upload:** Including from the camera on mobile devices.
+*   **Context preservation:** The discussion output, along with uploaded images and code execution source and results, is preserved across Stop/Start Listening.
 *   **Single-Page Application:** The entire client-side logic resides within a single HTML file (`gemini-live.html`), simplifying deployment and enhancing user experience.
 *   **Client-Side JavaScript:** The core functionality, including voice capture, transcription, and interaction with the js-genai API, is implemented in JavaScript, making the application highly responsive.
 *   **Secure API Key Management:** Utilizes Flask to securely manage the API key by setting it as a cookie. The user is asked to provide their own key, preventing the need to hardcode an API key or run in to rate limits.
@@ -30,7 +31,9 @@ This **Gemini Live Voice to Text Realtime Stream** running at [live.talknicer.co
 To run the server: `python -m flask --app main run` and then visit the endpoint from a browser where the API key cookie can be set.
 
 ## Requirements:
-The server only needs `Flask` installed (`pip install flask`), but the client JavaScript uses Google's `js-genai`, `marked`, `katex`, and the `marked-katex-extension` libraries, none of which need to be installed.
+The server only needs `Flask` installed (`pip install flask`), but the client JavaScript uses Google's `js-genai`, and the `marked`, `katex`, and `marked-katex-extension` libraries, none of which need to be installed.
+
+If you just serve the `gemini-live.html` file from `localhost` with a hardcoded API key, you don't need Flask.
 
 ## Documentation:
 * https://ai.google.dev/gemini-api/docs/live

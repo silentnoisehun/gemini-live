@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
     <title>Gemini Live Voice to Text Realtime Stream</title>
     <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -13,11 +13,11 @@
             height: 100vh;
             margin: 0;
             overflow: hidden; /* Prevent body scroll */
-            background-color: #f4f4f4;    
+            background-color: #eee;    
         }
         #controls {
             padding: 5px;
-            background-color: #4ed6c934;
+            background-color: lightcyan;
             border-bottom: 1px solid #ccc;
             text-align: center;
             position: relative;
@@ -34,7 +34,7 @@
             padding: 10px 20px;
             font-size: 1em;
             cursor: pointer;
-            background-color: #4CAF50;
+            background-color: #4c4;
             color: white;
             border: none;
             border-radius: 5px;
@@ -58,7 +58,7 @@
             border-radius: 5px;
         }
         #toggleStream.stop {
-            background-color: #f44336;
+            background-color: red;
         }
         #title {
             font-size: 1.2em;
@@ -78,8 +78,8 @@
             padding: 10px;
             padding-bottom: 30px;
             overflow-y: auto; /* Enables scrolling */
-            background-color: #fff;
-            border: 1px solid #ddd;
+            background-color: white;
+            border: 1px solid lightgray;
             margin: 8px;
             border-radius: 5px;
         }
@@ -201,6 +201,8 @@
         const sendImageButton = document.getElementById('sendImage');
         const sendTextButton = document.getElementById('sendText');
         const controls = document.getElementById('debugContainer');
+        const floatingTextInput = document.getElementById('floatingTextInput');
+        const textInput = document.getElementById('textInput');
 
         // --- State Variables ---
         let genAI;
@@ -213,8 +215,7 @@
         let currentTurnText = "";
         let totalBytesSent = 0;
         let API_KEY = null;
-        const floatingTextInput = document.getElementById('floatingTextInput');
-        const textInput = document.getElementById('textInput');
+        let contextTurns = [];
 
         function getCookie(name) {
             const value = `; ${document.cookie}`;
@@ -230,7 +231,7 @@
             }
             return true;
         }
-            
+        
         // --- Debug Checkbox Logic ---
         const debugCheckbox = document.getElementById('debugCheckbox');
         let debugMode = false; // Flag to control debug logging
@@ -363,7 +364,7 @@
                 }
                 audioSource = audioContext.createMediaStreamSource(mediaStream);
 
-                // 4. Set up Audio Worklet
+                // Step 4: Set up Audio Worklet
                 const workletBlob = new Blob([AudioRecordingWorklet], { type: 'application/javascript' });
                 const workletURL = URL.createObjectURL(workletBlob);
                 try {
@@ -374,7 +375,7 @@
                 }
                 audioWorkletNode = new AudioWorkletNode(audioContext, 'audio-processing-worklet');
   
-                // Step 4: Connect Audio Nodes: Mic Source -> Worklet
+                // Connect Audio Nodes: Mic Source -> Worklet
                 audioSource.connect(audioWorkletNode);
 
                 // Step 5: Connect to Gemini Live API
@@ -384,12 +385,17 @@
                     audioConfig: { targetSampleRate: TARGET_SAMPLE_RATE},
                     systemInstruction: SYSTEM_PROMPT,
                     config: {
-                        temperature: 0,
+                        responseModalities: [Modality.TEXT],
                         tools: [
                             {codeExecution: {}},
                             {googleSearch: {}},
                             ],
-                        responseModalities: [Modality.TEXT]
+                        generationConfig: {
+                            temperature: 0,
+                            seed: 42,
+                        },
+                        temperature: 0, // these are also accepted here, so why not? lol
+                        seed: 42,
                     },
                     callbacks: {
                         onopen: () => {
@@ -397,7 +403,7 @@
                             controls.style.display = 'none'; // Hide controls
                             sendImageButton.style.display = 'inline-block'; // Show the button
                             sendTextButton.style.display = 'inline-block';
-                            liveOutput("Connected to Gemini. Listening...", 'info');
+                            //liveOutput("Connected to Gemini. Listening...", 'info');
                         },
                         onmessage: (message) => {
                             if (debugMode) {
@@ -421,9 +427,13 @@
                                     }
                                 } else if (part.executableCode) {
                                     liveOutput("**Python code:**\n```\n" + part.executableCode.code + " ```");
+                                    // append model turn to context
+                                    contextTurns.push({role: 'model', parts: [{executableCode: part.executableCode.code}]});
                                 } else if (part.codeExecutionResult) {
                                     const result = part.codeExecutionResult;
                                     liveOutput("**Output:** (" + result.outcome + ")\n``` \n" + result.output + " ```");
+                                    // append model turn to context
+                                    contextTurns.push({role: 'model', parts: [{codeExecutionResult: result.outcome + "\n\n" + result.output}]});
                                 } else {
                                     const textPart = message.serverContent.modelTurn.parts.find(part => part.text);
                                     if (textPart && textPart.text.trim()) {
@@ -436,6 +446,8 @@
                                 // Finalize text when a turn was completed
                                 if (currentTurnText.trim().length > 0) {
                                     liveOutput(currentTurnText + "\n&nbsp;");
+                                    // append model turn to context
+                                    contextTurns.push({role: 'model', parts: [{text: currentTurnText}]});
                                 }
                                 currentTurnText = ""; // Reset for next turn
                             }
@@ -458,6 +470,16 @@
                          },
                     },
                 });
+                // send prior context if any
+                if (contextTurns.length) {
+                    liveOutput(`Sending ${contextTurns.length} turns of prior context above.`, 'info');
+                    contextTurns.push({role: 'user', parts: [{text: "Please summarize our discussion so far."}]})
+                    await liveSession.sendClientContent({
+                        turns: contextTurns,
+                        turnComplete: true
+                    });
+                }
+                liveOutput("Connected to Gemini. Listening...", 'info');
 
                 // Step 6: Handle Audio Data from Worklet
                 audioWorkletNode.port.onmessage = (event) => {
@@ -685,6 +707,8 @@
                     turnComplete: true
                 });
                 liveOutput('Image sent successfully! Waiting for Gemini to process...', 'info');
+                // append user turn to context
+                contextTurns.push({role: 'user', parts: [{inlineData: {'mimeType': mimeType, 'data': base64Image}}]});
             } catch (error) {
                 // Handle the error appropriately
                 liveOutput(`Error sending image: ${error.message || JSON.stringify(error)}`, 'error');                
@@ -725,6 +749,8 @@
                     turnComplete: true
                 });
                 liveOutput('Sent: ' + text, 'info');
+                // append user turn to context
+                contextTurns.push({role: 'user', parts: [{text: text}]});
             } catch (error) {
                 liveOutput(`Error sending text: ${error.message || JSON.stringify(error)}`, 'error');
             }
@@ -737,7 +763,7 @@
     
         // Add a click event listener to the sendTextButton
         sendTextButton.addEventListener('click', () => {
-            floatingTextInput.style.display = 'block'; // Display the floating input area
+            floatingTextInput.style.display = 'block'; // Display the input area
             textInput.focus(); // Focus on the text input area
         });
 
