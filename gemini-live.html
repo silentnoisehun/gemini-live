@@ -189,6 +189,11 @@
             'in full detail. When you do not have relevant information, use your ' +
             'Google Search tool to search for it. You can use Markdown and LaTeX. ' +
             "Do not merely describe the user(s)' utterances. Do not include timestamps.";
+        const INSTRUCTIONS = "**Instructions:**\n\nYou can interact with Gemini Live " +
+            "by speaking, uploading image files or from your camera, or typing or " +
+            "pasting text. You can search the web, ask for Python code to be executed, " +
+            "and see images like graphs from Matplotlib, as well as LaTeX mathematics " +
+            'typesetting.\n\nTry asking, "What can you do?"\n\n';
 
         // --- DOM Elements ---
         const toggleButton = document.getElementById('toggleStream');
@@ -738,6 +743,10 @@
 
         // Add safety net for page unload
         if (checkApiKey()) {
+            const instructions = document.createElement('div');
+            instructions.innerHTML = marked.parse(INSTRUCTIONS)
+            outputArea.appendChild(instructions);
+            outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
             liveOutput("Click 'Start Listening' to begin.", 'info');
         }
         window.addEventListener('beforeunload', () => {
