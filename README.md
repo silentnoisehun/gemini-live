@@ -1,6 +1,14 @@
 # Gemini Live Voice to Text Realtime Stream
 
+[![Run on Google Cloud Run](https://img.shields.io/badge/JavaScript-Run_in_browser-brightgreen?logo=javascript&labelColor=grey&logoColor=white)](https://live.talknicer.com)
+[![Google js-genai](https://img.shields.io/badge/Gemini_Live-js--genai_0.8.0-blue?logo=googlegemini&logoColor=white)](https://github.com/googleapis/js-genai)
+[![Katex LaTeX](https://img.shields.io/badge/LaTeX-marked+katex-blue?logo=latex)](https://www.npmjs.com/package/marked-katex-extension)
+[![MIT License](https://img.shields.io/badge/License-MIT-green?logo=openaccess&logoColor=white)](https://opensource.org/licenses/MIT)
+[![Donate](https://img.shields.io/badge/Donate-gold?logo=paypal)](https://paypal.me/jsalsman)
+
 This **Gemini Live Voice to Text Realtime Stream** running at [live.talknicer.com](https://live.talknicer.com) is a web application that provides a free, live, real-time voice-to-text large language model interaction experience using Google's new `js-genai` API. This project harnesses the power of Gemini 2.0 Flash Live in real-time to provide a seamless voice-driven experience for users, allowing them to chat with the model while reading the output instead of having to wait much longer for synthesized speech, which can't be skimmed. Google Search and Python code execution (with image output) are available, along with image upload (including from the camera on mobile) and both markdown and LaTeX output display. It runs entirely in the browser after the API key cookie is set, and was built in Firebase Studio with about 90% vibe coding and deployed on Google Cloud Run.
+
+<img src="screenshot.png" width="300" alt="Screenshot">
 
 ## Key features:
 *   **Real-time Voice Input:** Sends speech directly to the model as you speak, providing immediate and blazingly fast responses.
