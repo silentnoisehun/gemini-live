@@ -354,12 +354,12 @@
                                 const part = message.serverContent.modelTurn.parts[0];
 
                                 if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
-                                    liveOutput("Image:", "info")
                                     try {
                                         // Handle image data
                                         const img = document.createElement('img');       
                                         img.classList.add('output-image'); // Add CSS class for styling
                                         img.src = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                                        liveOutput("Image from Gemini:", "info")
                                         outputArea.appendChild(img);
                                         outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
                                     } catch (renderError) {
@@ -512,30 +512,38 @@
             
             // Add event listener for file selection
             input.addEventListener('change', (event) => {
-                const file = event.target.files[0];
-                if (file) {
-                    // Check if file size is reasonable (under 20MB)
-                    if (file.size > 20 * 1024 * 1024) {
-                        liveOutput(`Image too large (${(file.size/1024/1024).toFixed(2)}MB). Maximum size is 20MB.`, 'error');
-                        return;
-                    }
-                    
+                const file = event.target.files[0]; 
+                if (file) {                    
                     liveOutput(`Processing image: ${file.name}`, 'info');
-                    
-                    // Process the selected image
                     const reader = new FileReader();
-                    reader.onload = () => {
+                    reader.onload = async () => {
                         try {
-                            const base64Data = reader.result.split(',')[1]; // Extract base64 string
-                            // Pass the file's actual MIME type
-                            sendImageToStream(base64Data, file.type);
+                            let base64Data = reader.result.split(',')[1];
+                            let mimeType = file.type;
+
+                            // Downscale if necessary
+                            if (base64Data.length > 250 * 1024 * 0.75) { // Approximate base64 size
+                                const downscaled = await downscaleImage(base64Data, mimeType, 250 * 1024);
+                                base64Data = downscaled.base64;
+                                mimeType = downscaled.mimeType;
+                                liveOutput(`Image downscaled to ${(base64Data.length * 0.75 / 1024).toFixed(2)}KB`, 'info');
+                            }
+
+                            // Display image in output area
+                            const img = document.createElement('img');
+                            img.classList.add('output-image');
+                            img.src = `data:${mimeType};base64,${base64Data}`;
+                            outputArea.appendChild(img);
+                            outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
+
+                            // Send image to stream
+                            sendImageToStream(base64Data, mimeType);
+
                         } catch (error) {
                             liveOutput(`Error processing image: ${error.message}`, 'error');
                         }
                     };
-                    reader.onerror = (error) => {
-                        liveOutput(`Failed to read file: ${error}`, 'error');
-                    };
+                    reader.onerror = (error) => { liveOutput(`Failed to read file: ${error}`, 'error'); };
                     reader.readAsDataURL(file);
                 }
             });
@@ -544,13 +552,64 @@
             input.click();
         });
 
+        // Helper function for downscaling
+        function downscaleImage(base64, mimeType, maxSize) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    let newWidth = width;
+                    let newHeight = height;
+
+                    // Calculate scaling factor to fit within maxSize
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    // Binary search for the right quality
+                    let low = 0.1;
+                    let high = 1.0;
+                    let quality = 0.8;  // Initial guess
+                    let result = null;
+
+                    for (let i = 0; i < 10; i++) {  // 10 iterations of binary search
+                        canvas.width = newWidth;
+                        canvas.height = newHeight;
+                        ctx.drawImage(img, 0, 0, newWidth, newHeight);
+                        const newBase64 = canvas.toDataURL(mimeType, quality).split(',')[1];
+                        const newSize = newBase64.length * 0.75;
+
+                        if (newSize <= maxSize) {
+                            result = { base64: newBase64, mimeType: mimeType };
+                            low = quality;  // Try for better quality
+                        } else {
+                            high = quality;
+                            // Scale down image dimensions to reduce size.
+                            const scaleFactor = Math.sqrt(maxSize / newSize);
+                            newWidth = Math.floor(newWidth * scaleFactor);
+                            newHeight = Math.floor(newHeight * scaleFactor);
+                        }
+                        quality = (low + high) / 2;
+                    }
+
+                    if (result) {
+                        resolve(result);
+                    } else {
+                        // Should not happen after scaling image dimensions
+                        reject(new Error("Could not downscale image to the required size."));
+                    }
+                };
+                img.onerror = () => reject(new Error("Failed to load image for downscaling."));
+                img.src = `data:${mimeType};base64,${base64}`;
+            });
+        }
+
         // Function to send the image to the stream
         async function sendImageToStream(base64Image, mimeType = 'image/jpeg') {
             if (!liveSession) {
                 liveOutput('Live session not available. Please start listening first.', 'error');
                 return;
             }
-            
             if (!isStreaming) {
                 liveOutput('Streaming is not active. Please start listening first.', 'error');
                 return;
@@ -562,10 +621,7 @@
                     console.log(`Sending image (${(base64Image.length * 0.75 / 1024).toFixed(2)}KB) with MIME type: ${mimeType}`);
                 }
                 
-                // Show a loading indicator
-                liveOutput('Sending image...', 'info');
-                
-                // Send the image using the proper format
+                // Send the image as a completed turn
                 await liveSession.sendClientContent({
                     turns: [{
                         role: 'user',
@@ -582,19 +638,7 @@
                 liveOutput('Image sent successfully! Waiting for Gemini to process...', 'info');
             } catch (error) {
                 // Handle the error appropriately
-                liveOutput(`Error sending image: ${error.message || JSON.stringify(error)}`, 'error');
-                console.error("Full error details:", error);
-                
-                // If the connection was closed, inform the user
-                if (error.message && (
-                    error.message.includes('closed') || 
-                    error.message.includes('not connected') ||
-                    error.message.includes('invalid state')
-                )) {
-                    liveOutput('Connection lost. Try restarting the listening session.', 'error');
-                    // Force stop streaming to clean up resources
-                    stopStreaming();
-                }
+                liveOutput(`Error sending image: ${error.message || JSON.stringify(error)}`, 'error');                
             }
         }
 
