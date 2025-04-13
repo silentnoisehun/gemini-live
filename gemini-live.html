@@ -16,7 +16,7 @@
             background-color: #f4f4f4;    
         }
         #controls {
-            padding: 15px;
+            padding: 5px;
             background-color: #4ed6c934;
             border-bottom: 1px solid #ccc;
             text-align: center;
@@ -41,6 +41,15 @@
         }
         #sendImage {   
             background-color: blue;
+            display: none; /* Initially hidden */
+            border: none;
+            color: white;
+            font-size: 1em;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+        #sendText {   
+            background-color: darkorange;
             display: none; /* Initially hidden */
             border: none;
             color: white;
@@ -103,7 +112,28 @@
             color: blue;
             font-style: italic;
         }
-    </style>
+        /* Styles for floating text input */
+        #floatingTextInput {
+            display: none; /* Initially hidden */
+            position: fixed; /* Fixed position */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* Center */
+            width: 80vw; /* 80% of viewport width */
+            max-width: 600px; /* Max width */
+            background-color: rgba(255, 255, 255, 0.95); /* Semi-transparent background */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.3);
+            z-index: 100; /* Ensure it's on top */
+        }
+        #textInput {            
+            width: 100%;
+            height: 10em; /* 10 lines */
+            margin-bottom: 10px;
+            resize: vertical; /* Allow vertical resize */
+        }
+    </style>    
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 </head>
@@ -114,20 +144,30 @@
             <div id="debugContainer">
                 <a href="https://github.com/jsalsman/gemini-live"
                     target="_blank" style="text-decoration: none;">This
-                    code is on GitHub.</a><br><br>
+                    code is on GitHub.</a>
+                <br><br>
                 <input type="checkbox" id="debugCheckbox">
                 <label for="debugCheckbox"><small>Debug<br>
                     &nbsp;&nbsp;to console</small></label>
             </div>
-           <button id="toggleStream">Start<br>
-            Listening</button>
-           <button id="sendImage">Send<br>
-            Image</button>
+            <button id="toggleStream">Start<br>
+                Listening</button>
+            <button id="sendImage">Send<br>
+                Image</button>
+            <button id="sendText">Send<br>
+                Text</button>
         </div>
     </div>
 
     <div id="output-container">
         <pre id="output"></pre>
+    </div>
+
+    <!-- Floating Text Input Area -->
+    <div id="floatingTextInput">
+        <textarea id="textInput"></textarea>
+        <button>Send</button>
+        <small>or Enter to send; use Shift+Enter for newlines</small>        
     </div>
 
     <script type="module">
@@ -153,6 +193,8 @@
         const toggleButton = document.getElementById('toggleStream');
         const outputArea = document.getElementById('output');
         const sendImageButton = document.getElementById('sendImage');
+        const sendTextButton = document.getElementById('sendText');
+        const controls = document.getElementById('debugContainer');
 
         // --- State Variables ---
         let genAI;
@@ -165,7 +207,9 @@
         let currentTurnText = "";
         let totalBytesSent = 0;
         let API_KEY = null;
-        
+        const floatingTextInput = document.getElementById('floatingTextInput');
+        const textInput = document.getElementById('textInput');
+
         function getCookie(name) {
             const value = `; ${document.cookie}`;
             const parts = value.split(`; ${name}=`);
@@ -344,7 +388,9 @@
                     callbacks: {
                         onopen: () => {
                             // The connection to Gemini is open; audio processing and sending can begin
+                            controls.style.display = 'none'; // Hide controls
                             sendImageButton.style.display = 'inline-block'; // Show the button
+                            sendTextButton.style.display = 'inline-block';
                             liveOutput("Connected to Gemini. Listening...", 'info');
                         },
                         onmessage: (message) => {
@@ -488,12 +534,13 @@
             // Step 11: Reset UI
             toggleButton.innerHTML = "Start<br>Listening";
             toggleButton.classList.remove('stop');
-            sendImageButton.style.display = 'none'; // Hide the button
+            sendTextButton.style.display = 'none'; // Hide the text button
+            sendImageButton.style.display = 'none'; // Hide the image button
+            controls.style.display = 'inline-block'; // Restore controls
             genAI = null; // Clear the client instance
             if (wasStreaming) {
                 liveOutput("Stopped listening.\n", 'info');
             } 
-           
         }
 
         // --- Event Listener ---
@@ -608,15 +655,10 @@
 
         // Function to send the image to the stream
         async function sendImageToStream(base64Image, mimeType = 'image/jpeg') {
-            if (!liveSession) {
-                liveOutput('Live session not available. Please start listening first.', 'error');
+            if (!liveSession || !isStreaming) {
+                liveOutput('Error: Live session not active. Please start listening first.', 'error');
                 return;
             }
-            if (!isStreaming) {
-                liveOutput('Streaming is not active. Please start listening first.', 'error');
-                return;
-            }
-            
             try {
                 // Debug information
                 if (debugMode) {
@@ -636,13 +678,62 @@
                     }],                    
                     turnComplete: true
                 });
-                
                 liveOutput('Image sent successfully! Waiting for Gemini to process...', 'info');
             } catch (error) {
                 // Handle the error appropriately
                 liveOutput(`Error sending image: ${error.message || JSON.stringify(error)}`, 'error');                
             }
         }
+
+        // Function to submit text input from the floating input area
+         function submitTextInput() {
+            const text = textInput.value;
+            floatingTextInput.style.display = 'none';
+            textInput.value = "";
+            if (text.trim() !== "") { // Check for empty input
+                sendTextToStream(text); // Send the text to the stream
+            }
+        }
+
+        // If using Enter key in the textarea:
+        textInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) { // Enter without Shift
+                event.preventDefault(); // Prevent default Enter behavior (newline)
+                submitTextInput();
+            }
+        });
+
+        async function sendTextToStream(text) {
+            if (!liveSession || !isStreaming) {
+                liveOutput('Error: Live session not active. Please start listening first.', 'error');
+                return;
+            }
+            try {
+                await liveSession.sendClientContent({
+                    turns: [{
+                        role: 'user',
+                        parts: [{
+                            text: text
+                        }]
+                    }],
+                    turnComplete: true
+                });
+                liveOutput('Sent: ' + text, 'info');
+            } catch (error) {
+                liveOutput(`Error sending text: ${error.message || JSON.stringify(error)}`, 'error');
+            }
+        }
+
+        // Event listener for the Send button in the floating text input
+        document.querySelector('#floatingTextInput button').addEventListener('click', () => {
+            submitTextInput();
+        });
+    
+        // Add a click event listener to the sendTextButton
+        sendTextButton.addEventListener('click', () => {
+            floatingTextInput.style.display = 'block'; // Display the floating input area
+            textInput.focus(); // Focus on the text input area
+        });
 
         // Add safety net for page unload
         if (checkApiKey()) {
