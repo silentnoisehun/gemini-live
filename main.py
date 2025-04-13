@@ -18,7 +18,16 @@ def index():
     <title>Gemini Live Voice to Text Realtime: Enter API Key</title>
     <meta name="description" content="Gemini Live voice-to-text realtime stream">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <meta property="og:title" content="Gemini Live Voice to Text Realtime">
+    <meta property="og:description" content="Gemini Live voice-to-text realtime stream">
+    <meta property="og:image" content="https://live.talknicer.com/screenshot.png">
+    <meta property="og:url" content="https://live.talknicer.com/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="live.talknicer.com">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Gemini Live Voice to Text Realtime">
+    <meta name="twitter:description" content="Gemini Live voice-to-text realtime stream">
+    <meta name="twitter:image" content="https://live.talknicer.com/screenshot.png">
     <style>
         body {
           background-color: lightgreen;
@@ -77,6 +86,10 @@ def index():
 @app.route('/favicon.ico')
 def favicon():
     return send_file('favicon.ico', mimetype='image/x-icon')
+
+@app.route('/screenshot.png')
+def screenshot():
+    return send_file('screenshot.png', mimetype='image/png')
 
 @app.route('/robots.txt')
 def robots():
