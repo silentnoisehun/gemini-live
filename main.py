@@ -13,10 +13,12 @@ def index():
             # HTML for form
             html_content = """<!DOCTYPE html>
 <html><head>
+    <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
     <meta charset="UTF-8">
     <title>Gemini Live Voice to Text Realtime: Enter API Key</title>
-    <!-- By Jim Salsman, April 2025. Released under the free MIT License. -->
+    <meta name="description" content="Gemini Live voice-to-text realtime stream">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <style>
         body {
           background-color: lightgreen;
@@ -63,8 +65,7 @@ def index():
         your own server. By <a href="mailto:jim@talknicer.com"
         >Jim Salsman</a>, April 11, 2025.
     </p>
-</body>
-</html>"""
+</body></html>"""
             return html_content
     elif request.method == 'POST':
         api_key = request.form.get('api_key')
