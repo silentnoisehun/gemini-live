@@ -1,5 +1,5 @@
 from flask import Flask, send_file, request, redirect, Response
-#import os
+import os
 
 app = Flask(__name__)
 
@@ -28,6 +28,8 @@ def screenshot():
 
 @app.route('/robots.txt')
 def robots():
-    return Response("User-agent: *\nAllow: /\n", mimetype='text/plain')
+    return Response("User-agent: *\nAllow: /\n",
+                    mimetype='text/plain')
 
-#app.run(port=int(os.environ.get('PORT', 80)), debug=...)
+if __name__ == '__main__':
+    app.run(port=int(os.environ.get('PORT', 80)))
