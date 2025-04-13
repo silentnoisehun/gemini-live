@@ -194,7 +194,7 @@
         function liveOutput(text, type = 'text') {
             const line = document.createElement('div');
             line.innerHTML = marked.parse(text).replace(
-                '<a href=', '<a target="_blank" href='); // all links open in new tab
+                '<a href=', '<a TARGET="_blank" href='); // all links open in new tab
             line.classList.add('output');
             if (type === 'error') {
                 line.classList.add('error');
