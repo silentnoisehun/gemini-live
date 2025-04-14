@@ -433,12 +433,12 @@
                                 } else if (part.executableCode) {
                                     liveOutput("**Python code:**\n```\n" + part.executableCode.code + " ```");
                                     // append model turn to context
-                                    contextTurns.push({role: 'model', parts: [{executableCode: part.executableCode.code}]});
+                                    contextTurns.push({role: 'model', parts: [{text: part.executableCode.code}]});
                                 } else if (part.codeExecutionResult) {
                                     const result = part.codeExecutionResult;
                                     liveOutput("**Output:** (" + result.outcome + ")\n``` \n" + result.output + " ```");
                                     // append model turn to context
-                                    contextTurns.push({role: 'model', parts: [{codeExecutionResult: result.outcome + "\n\n" + result.output}]});
+                                    contextTurns.push({role: 'model', parts: [{text: result.outcome + "\n\n" + result.output}]});
                                 } else {
                                     const textPart = message.serverContent.modelTurn.parts.find(part => part.text);
                                     if (textPart && textPart.text.trim()) {
@@ -713,7 +713,7 @@
                 });
                 liveOutput('Image sent successfully! Waiting for Gemini to process...', 'info');
                 // append user turn to context
-                contextTurns.push({role: 'user', parts: [{inlineData: {'mimeType': mimeType, 'data': base64Image}}]});
+                contextTurns.push({role: 'user', parts: [{inlineData: {'mimeType': mimeType, 'data': base64Image}}]}); // TESTME
             } catch (error) {
                 // Handle the error appropriately
                 liveOutput(`Error sending image: ${error.message || JSON.stringify(error)}`, 'error');                
