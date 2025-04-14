@@ -33,3 +33,5 @@ def robots():
 
 if __name__ == '__main__':
     app.run(port=int(os.environ.get('PORT', 80)))
+# Ordinarily should be: python -m flask --app main run -p $PORT
+# or gunicorn, etc.
