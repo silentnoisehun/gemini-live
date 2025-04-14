@@ -713,7 +713,7 @@
                 });
                 liveOutput('Image sent successfully! Waiting for Gemini to process...', 'info');
                 // append user turn to context
-                contextTurns.push({role: 'user', parts: [{inlineData: {'mimeType': mimeType, 'data': base64Image}}]}); // TESTME
+                contextTurns.push({role: 'user', parts: [{inlineData: {'mimeType': mimeType, 'data': base64Image}}]});
             } catch (error) {
                 // Handle the error appropriately
                 liveOutput(`Error sending image: ${error.message || JSON.stringify(error)}`, 'error');                
