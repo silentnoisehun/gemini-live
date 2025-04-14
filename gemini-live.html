@@ -257,12 +257,16 @@
                 console.error(text);
             } else if (type === 'info') {
                 line.classList.add('info');
-                console.log(text);
+                if (debugMode) {
+                    console.log(text);
+                }
             } else {
                  line.classList.add('text');
             }
             if (type !== 'error' && type !== 'info') { // Only log "Gemini:" if not error or info
-                console.log("Gemini:", text.replace('\n&nbsp;', ''));
+                if (debugMode) {
+                    console.log("Gemini:", text.replace('\n&nbsp;', ''));
+                }
             }
             outputArea.appendChild(line);
             outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
@@ -285,10 +289,7 @@
                 bufferWriteIndex = 0;
 
                 constructor() {
-                  super();
-                    this.port.onmessage = (event) => {
-                        // console.log("Worklet received message:", event.data);
-                    };
+                    super();
                 }
 
                 process(inputs, outputs, parameters) {
@@ -343,7 +344,9 @@
                 genAI = new GoogleGenAI({ apiKey: API_KEY });
                 try {
                     const modelInfo = await genAI.models.get({ model: MODEL_NAME });
-                    console.log("Gemini model info:", modelInfo);                
+                    if (debugMode) {
+                        console.log("Gemini model info:", modelInfo);
+                    }
                 } catch (testError) {
                     // Clear the cookie
                     document.cookie = 'gemini_api_key=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
