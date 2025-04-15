@@ -82,6 +82,7 @@
             border: 1px solid lightgray;
             margin: 8px;
             border-radius: 5px;
+            scroll-behavior: smooth; /* Apply smooth scrolling */
         }
         #output {
             white-space: pre-wrap; /* Preserve whitespace and wrap lines */
@@ -392,6 +393,7 @@
                     model: MODEL_NAME,
                     audioConfig: { targetSampleRate: TARGET_SAMPLE_RATE},
                     systemInstruction: SYSTEM_PROMPT,
+                    inputAudioTranscription: true, // Enable audio transcription, not working; being worked on now
                     config: {
                         responseModalities: [Modality.TEXT],
                         tools: [
@@ -430,6 +432,11 @@
                                         liveOutput("Image from Gemini:", "info")
                                         outputArea.appendChild(img);
                                         outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
+                                        // append model turn to context
+                                        if (!part.inlineData.mimeType.startsWith('image/gif')) { // .gif files cause bugs
+                                            contextTurns.push({role: 'model', parts: [{inlineData: 
+                                                {'mimeType': part.inlineData.mimeType, 'data': part.inlineData.data}}]});
+                                        }
                                     } catch (renderError) {
                                         liveOutput(`Error rendering image: ${renderError.message}`, 'error');
                                     }
