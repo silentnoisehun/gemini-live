@@ -200,11 +200,12 @@
             'typesetting.\n\nTry asking, "What can you do?"\n\n';
 
         // --- DOM Elements ---
+        const controls = document.getElementById('controls');
         const toggleButton = document.getElementById('toggleStream');
         const outputArea = document.getElementById('output');
         const sendImageButton = document.getElementById('sendImage');
         const sendTextButton = document.getElementById('sendText');
-        const controls = document.getElementById('debugContainer');
+        const debugContainer = document.getElementById('debugContainer');
         const floatingTextInput = document.getElementById('floatingTextInput');
         const textInput = document.getElementById('textInput');
 
@@ -326,6 +327,48 @@
             registerProcessor('audio-processing-worklet', AudioProcessingWorklet);
         `;
 
+        // --- Volume Meter Worklet --
+        const VolumeMeterWorklet = `
+        class VolumeMeter extends AudioWorkletProcessor {
+            constructor() {
+                super();
+                this.volume = 0;
+            }
+            
+            process(inputs) {
+                const input = inputs[0];
+                if (input.length > 0 && input[0].length > 0) {
+                    // Calculate RMS (Root Mean Square)
+                    let sumOfSquares = 0.0;
+                    for (const sample of input[0]) {
+                        sumOfSquares += sample * sample;
+                    }
+                    const rms = Math.sqrt(sumOfSquares / input[0].length);
+                    
+                    // Convert RMS to a linear scale (0.0 to 1.0)
+                    this.volume = Math.min(1.0, rms * 10); // Adjust multiplier as needed for sensitivity
+                    // Post a message to main thread with the volume level
+                    this.port.postMessage({ volume: this.volume });
+                } else {
+                    this.volume = 0;
+                }
+                
+                return true;
+            }
+        }
+        registerProcessor('volume-meter', VolumeMeter);
+        `;
+        let volumeWorkletNode;
+
+        // Function to update the VU meter's background color
+        function updateVuMeter(volume) {
+            const darkness = Math.round(volume * 150); // Adjust multiplier for sensitivity
+            const newRed = Math.max(0, 224 - darkness); // Base red: 224
+            const newGreen = Math.max(0, 255 - darkness); // Base green: 255
+            const newBlue = Math.max(0, 255 - darkness); // Base blue: 255
+            controls.style.backgroundColor = `rgb(${newRed}, ${newGreen}, ${newBlue})`;
+        }
+
         // --- Core Streaming Logic ---
 
         async function startStreaming() {
@@ -334,7 +377,6 @@
                 return;
                 
             }
-
 
             isStreaming = true; // Set streaming flag early
             toggleButton.innerHTML = "Stop<br>Listening";
@@ -372,7 +414,12 @@
                     await audioContext.resume();
                 }
                 audioSource = audioContext.createMediaStreamSource(mediaStream);
-
+                 // Create a gain node to split the audio signal
+                 const splitter = audioContext.createChannelSplitter(2);
+                const merger = audioContext.createChannelMerger(2);
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = 1; // No gain change
+               
                 // Step 4: Set up Audio Worklet
                 const workletBlob = new Blob([AudioRecordingWorklet], { type: 'application/javascript' });
                 const workletURL = URL.createObjectURL(workletBlob);
@@ -383,12 +430,33 @@
                     throw e; // Re-throw to be caught by outer catch
                 }
                 audioWorkletNode = new AudioWorkletNode(audioContext, 'audio-processing-worklet');
-  
-                // Connect Audio Nodes: Mic Source -> Worklet
-                audioSource.connect(audioWorkletNode);
 
+                // Add the volume meter worklet
+                const volumeWorkletBlob = new Blob([VolumeMeterWorklet], { type: 'application/javascript' });
+                const volumeWorkletURL = URL.createObjectURL(volumeWorkletBlob);
+                try {
+                    await audioContext.audioWorklet.addModule(volumeWorkletURL);
+                } catch (e) {
+                    liveOutput(`Error adding VolumeMeter AudioWorklet module: ${e.message}. Make sure you are serving this page over HTTPS or localhost.`, 'error');
+                    throw e; // Re-throw to be caught by outer catch
+                }
+                volumeWorkletNode = new AudioWorkletNode(audioContext, 'volume-meter');
+
+                // Connect audio nodes: Mic Source -> Gain Node -> Volume Worklet
+                audioSource.connect(gainNode);
+                gainNode.connect(volumeWorkletNode);
+                
+                //connect audio nodes: Gain Node -> split -> merge -> Gemini Worklet
+                gainNode.connect(splitter);
+                splitter.connect(merger, 0, 0); // Connect channel 0 to input 0
+                splitter.connect(merger, 0, 1); // Connect channel 0 to input 1
+                merger.connect(audioWorkletNode);
+
+                volumeWorkletNode.connect(audioWorkletNode);
+               
                 // Step 5: Connect to Gemini Live API
                 // Assign to liveSession *after* connection is successful
+
                 liveSession = await genAI.live.connect({
                     model: MODEL_NAME,
                     audioConfig: { targetSampleRate: TARGET_SAMPLE_RATE},
@@ -410,7 +478,7 @@
                     callbacks: {
                         onopen: () => {
                             // The connection to Gemini is open; audio processing and sending can begin
-                            controls.style.display = 'none'; // Hide controls
+                            debugContainer.style.display = 'none'; // Hide controls
                             sendImageButton.style.display = 'inline-block'; // Show the button
                             sendTextButton.style.display = 'inline-block';
                             //liveOutput("Connected to Gemini. Listening...", 'info');
@@ -524,6 +592,15 @@
                     }
                 };
 
+                // Handle volume events
+                volumeWorkletNode.port.onmessage = (event) => {
+                    if (event.data.volume !== undefined) {
+                       updateVuMeter(event.data.volume);
+                    }
+
+                };
+
+
             } catch (error) {
                 liveOutput(`Error starting stream: ${error.message || error}`, 'error');
                 await stopStreaming(); // Ensure cleanup happens even on startup error
@@ -555,6 +632,13 @@
                 audioWorkletNode.disconnect();
                 audioWorkletNode = null;
             }
+            // disconnect the volume meter node
+            if (volumeWorkletNode) {
+                volumeWorkletNode.disconnect();
+                
+                volumeWorkletNode = null;
+                
+            }
             if (audioSource) {
                 audioSource.disconnect();
                 audioSource = null;
@@ -579,7 +663,7 @@
             toggleButton.classList.remove('stop');
             sendTextButton.style.display = 'none'; // Hide the text button
             sendImageButton.style.display = 'none'; // Hide the image button
-            controls.style.display = 'inline-block'; // Restore controls
+            debugContainer.style.display = 'inline-block'; // Restore controls
             genAI = null; // Clear the client instance
             if (wasStreaming) {
                 liveOutput("Stopped listening.\n", 'info');
