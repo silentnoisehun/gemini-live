@@ -875,7 +875,6 @@
             }
         });
 
-        // Add safety net for page unload
         if (checkApiKey()) {
             const instructions = document.createElement('div');
             instructions.innerHTML = marked.parse(INSTRUCTIONS)
@@ -883,6 +882,8 @@
             outputArea.parentNode.scrollTop = outputArea.parentNode.scrollHeight;
             liveOutput("Click 'Start Listening' to begin.", 'info');
         }
+
+        // Add safety net for page unload
         window.addEventListener('beforeunload', () => {
             if (isStreaming) {
                 stopStreaming(); // Attempt cleanup if user navigates away
