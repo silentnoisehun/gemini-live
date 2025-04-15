@@ -795,6 +795,17 @@
                 stopStreaming(); // Attempt cleanup if user navigates away
             }
         });
+        // Event listener to hide floatingTextInput on outside click
+        document.addEventListener('click', (event) => {
+            if (
+                floatingTextInput.style.display === 'block' &&
+                !floatingTextInput.contains(event.target) &&
+                event.target !== sendTextButton // Check if the click is NOT on the sendTextButton
+            ) {
+                floatingTextInput.style.display = 'none';
+            }
+        });
+
     </script>
 </body>
 </html>
