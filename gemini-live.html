@@ -547,6 +547,8 @@
                                     liveOutput("**Output:** (" + result.outcome + ")\n``` \n" + result.output + " ```");
                                     // append model turn to context
                                     contextTurns.push({role: 'model', parts: [{text: result.outcome + "\n\n" + result.output}]});
+                                } else if (message.inputTranscription) {
+                                    liveOutput("You said: " + message.inputTranscription, 'info');
                                 } else {
                                     const textPart = message.serverContent.modelTurn.parts.find(part => part.text);
                                     if (textPart && textPart.text.trim()) {
