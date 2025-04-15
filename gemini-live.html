@@ -547,8 +547,6 @@
                                     liveOutput("**Output:** (" + result.outcome + ")\n``` \n" + result.output + " ```");
                                     // append model turn to context
                                     contextTurns.push({role: 'model', parts: [{text: result.outcome + "\n\n" + result.output}]});
-                                } else if (message.inputTranscription) {
-                                    liveOutput("You said: " + message.inputTranscription, 'info');
                                 } else {
                                     const textPart = message.serverContent.modelTurn.parts.find(part => part.text);
                                     if (textPart && textPart.text.trim()) {
@@ -565,7 +563,10 @@
                                     contextTurns.push({role: 'model', parts: [{text: currentTurnText}]});
                                 }
                                 currentTurnText = ""; // Reset for next turn
+                            } else if (message.inputTranscription) {
+                                    liveOutput("You said: " + message.inputTranscription, 'info');
                             }
+
                             if (message.error) {
                                 liveOutput(`Gemini Error: ${message.error.message || JSON.stringify(message.error)}`, 'error');
                             }
