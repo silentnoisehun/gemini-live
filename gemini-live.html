@@ -6,17 +6,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        /* General body styles */
         body {
             font-family: sans-serif;
             display: flex;
             flex-direction: column;
             height: 100vh;
             margin: 0;
-            overflow: hidden; /* Prevent body scroll */
+            overflow: hidden; /* Prevent body from scrolling */
             background-color: #eee;    
         }
+
+        /* Control bar styles */
         #controls {
             padding: 5px;
+            /* Light background and border */
             background-color: lightcyan;
             border-bottom: 1px solid #ccc;
             text-align: center;
@@ -27,9 +31,11 @@
             align-items: center;            
             justify-content: flex-end;
             width: 100%;            
-            text-align: center;
-            gap: 5px; /* Add gap between title and button */
+            text-align: center; /* Center content horizontally */
+            gap: 5px; /* Add gap between elements */
         }
+
+        /* Start/Stop listening button */
         #toggleStream {
             padding: 10px 20px;
             font-size: 1em;
@@ -39,6 +45,8 @@
             border: none;
             border-radius: 5px;
         }
+
+        /* Send image button */
         #sendImage {   
             background-color: blue;
             display: none; /* Initially hidden */
@@ -48,6 +56,8 @@
             padding: 10px 20px;
             border-radius: 5px;
         }
+
+        /* Send text button */
         #sendText {   
             background-color: darkorange;
             display: none; /* Initially hidden */
@@ -57,39 +67,52 @@
             padding: 10px 20px;
             border-radius: 5px;
         }
+
+        /* Style for 'stop' state of the listening button */
         #toggleStream.stop {
             background-color: red;
         }
+
+        /* Title style, floated to the left */
         #title {
             font-size: 1.2em;
             border-radius: 5px;
-            margin-right: auto; /* Push the title to the left */
+            margin-right: auto; /* Push the title to the far left */
         }
+
+        /* Styles for debug input elements */
         #controls-content > label, #controls-content > input {
             margin-left: 5px;
         }
+
+        /* Debug container style */
         #debugContainer {
-            margin-right: auto; /* Push the container to the left */
-            text-align: center; /* Center content within the container */
+            margin-right: auto; /* Push the container to the far left */
+            text-align: center; /* Center the content */
         }
 
+        /* Main output container styles */
         #output-container {
-            flex-grow: 1; /* Takes remaining height */
+            flex-grow: 1; /* Take up remaining space */
             padding: 10px;
             padding-bottom: 30px;
-            overflow-y: auto; /* Enables scrolling */
+            overflow-y: auto; /* Enable scrolling if content overflows */
             background-color: white;
             border: 1px solid lightgray;
             margin: 8px;
             border-radius: 5px;
-            scroll-behavior: smooth; /* Apply smooth scrolling */
+            scroll-behavior: smooth; /* Smooth scroll behavior */
         }
+
+        /* Output text style */
         #output {
-            white-space: pre-wrap; /* Preserve whitespace and wrap lines */
-            word-wrap: break-word; /* Break long words */
+            white-space: pre-wrap; /* Wrap long lines */
+            word-wrap: break-word; /* Break long words onto multiple lines */
             font-family: sans-serif;
             font-size: 0.9em;
         }
+
+        /* Styles to eliminate extra whitespace around output content */
         #output p {
             margin-bottom: -0.5em; /* Remove vertical whitespace */
             margin-top: -0.2em;
@@ -98,14 +121,20 @@
             margin-top: -0.5em;
             margin-bottom: -0.5em; /* Remove vertical whitespace */
         }
+
+        /* Styles to eliminate extra whitespace around <pre> output content */
         #output pre {
             margin: 0; /* Remove vertical whitespace */
-            white-space: pre-wrap; /* Preserve whitespace and wrap lines */
+            white-space: pre-wrap; /* Wrap long lines */
         }
+
+        /* Styles for images in the output area */
         .output-image {
             max-height: 50vh;
             max-width: 90vw;
         }
+
+        /* Output text styles */
         .error {
             color: red;
             font-weight: bold;
@@ -114,6 +143,7 @@
             color: blue;
             font-style: italic;
         }
+
         /* Styles for floating text input */
         #floatingTextInput {
             display: none; /* Initially hidden */
@@ -247,7 +277,7 @@
             debugMode = debugCheckbox.checked;
         });
 
-        marked.use(markedKatex({ throwOnError: false }));
+        marked.use(markedKatex({ throwOnError: false })); // LaTeX
 
         function liveOutput(text, type = 'text') {
             const line = document.createElement('div');
