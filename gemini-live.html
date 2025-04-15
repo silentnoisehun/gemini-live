@@ -597,9 +597,7 @@
                     if (event.data.volume !== undefined) {
                        updateVuMeter(event.data.volume);
                     }
-
                 };
-
 
             } catch (error) {
                 liveOutput(`Error starting stream: ${error.message || error}`, 'error');
@@ -679,7 +677,7 @@
             }
         });
 
-        // Enhanced "Send Image" button event listener
+        // "Send Image" button event listener
         document.getElementById('sendImage').addEventListener('click', () => {
             // Create a file input element
             const input = document.createElement('input');
@@ -866,6 +864,17 @@
             textInput.focus(); // Focus on the text input area
         });
 
+        // Event listener to hide floatingTextInput on outside click
+        document.addEventListener('click', (event) => {
+            if (
+                floatingTextInput.style.display === 'block' &&
+                !floatingTextInput.contains(event.target) &&
+                event.target !== sendTextButton // Check if the click is NOT on the sendTextButton
+            ) {
+                floatingTextInput.style.display = 'none';
+            }
+        });
+
         // Add safety net for page unload
         if (checkApiKey()) {
             const instructions = document.createElement('div');
@@ -879,17 +888,6 @@
                 stopStreaming(); // Attempt cleanup if user navigates away
             }
         });
-        // Event listener to hide floatingTextInput on outside click
-        document.addEventListener('click', (event) => {
-            if (
-                floatingTextInput.style.display === 'block' &&
-                !floatingTextInput.contains(event.target) &&
-                event.target !== sendTextButton // Check if the click is NOT on the sendTextButton
-            ) {
-                floatingTextInput.style.display = 'none';
-            }
-        });
-
     </script>
 </body>
 </html>
