@@ -487,24 +487,24 @@
                 // Step 5: Connect to Gemini Live API
                 // Assign to liveSession *after* connection is successful
 
-                liveSession = await genAI.live.connect({
-                    model: MODEL_NAME,
-                    audioConfig: { targetSampleRate: TARGET_SAMPLE_RATE},
-                    systemInstruction: SYSTEM_PROMPT,
-                    inputAudioTranscription: true, // Enable audio transcription, not working; being worked on now
-                    config: {
-                        responseModalities: [Modality.TEXT],
-                        tools: [
-                            {codeExecution: {}},
-                            {googleSearch: {}},
-                            ],
-                        generationConfig: {
-                            temperature: 0,
+                    liveSession = await genAI.live.connect({
+                        model: MODEL_NAME,
+                        audioConfig: { targetSampleRate: TARGET_SAMPLE_RATE },
+                        systemInstruction: SYSTEM_PROMPT,
+                        inputAudioTranscription: {}, // Enable audio transcription, not working; being worked on now
+                        config: {
+                            responseModalities: [Modality.TEXT],
+                            tools: [
+                                {codeExecution: {}},
+                                {googleSearch: {}},
+                                ],
+                            generationConfig: {
+                                temperature: 0,
+                                seed: 42,
+                            },
+                            temperature: 0, // these are also accepted here, so why not? lol
                             seed: 42,
                         },
-                        temperature: 0, // these are also accepted here, so why not? lol
-                        seed: 42,
-                    },
                     callbacks: {
                         onopen: () => {
                             // The connection to Gemini is open; audio processing and sending can begin
