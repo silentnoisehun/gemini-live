@@ -10,6 +10,10 @@ This **Gemini Live Voice to Text Realtime Stream** running at [live.talknicer.co
 
 <img src="screenshot.png" width="300" alt="Screenshot">
 
+## Note on spoken input transcriptions
+
+We are waiting on https://github.com/googleapis/js-genai/issues/478 which when fixed will show input speech transcriptions, presumably with the current version of the client code.
+
 ## Key features:
 *   **Real-time Voice Input:** Sends speech directly to the model as you speak, providing immediate and blazingly fast responses.
 *   **Interactive Conversation:** Allows users to engage in a continuous conversation with the model. Output is rendered correctly from both markdown and LaTeX. Text input, including from copy/paste, is available when needed.
